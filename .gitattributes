@@ -1,0 +1,10 @@
+# Normalize line endings to LF in the repo so clones on Linux/CI are clean.
+* text=auto eol=lf
+
+# Binary assets — never touch line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.gguf binary
+*.onnx binary
