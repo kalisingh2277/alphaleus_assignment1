@@ -5,6 +5,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
+from app.models.change import ChangeCategory, CrmStatus
 from app.models.competitor import MonitorScope, MonitorStatus
 
 
@@ -40,14 +41,47 @@ class SnapshotOut(BaseModel):
     scraped_at: datetime
 
 
+class ChangeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    competitor_id: uuid.UUID
+    from_snapshot_id: uuid.UUID | None
+    to_snapshot_id: uuid.UUID
+    similarity: float | None
+    is_meaningful: bool
+    category: ChangeCategory | None
+    structured_diff: dict | None
+    summary: str | None
+    impact_score: int | None
+    recommended_action: str | None
+    crm_status: CrmStatus
+    detected_at: datetime
+
+
+class PipelineRunResult(BaseModel):
+    """Summary returned by a pipeline run (manual trigger or scheduled)."""
+
+    competitors: int
+    scraped: int
+    changes: int
+    meaningful: int
+    filtered: int
+    errors: int
+
+
 class ScrapeResult(BaseModel):
     """Returned by the manual 'scrape now' endpoint.
 
-    ``changed`` is a Day-1 exact-hash comparison vs the previous snapshot.
-    Day 2 replaces this with semantic distance + noise filtering.
+    ``changed`` = content hash differs from the previous snapshot.
+    ``is_meaningful`` = semantic distance exceeded the threshold (noise filtered out).
     """
 
     snapshot: SnapshotOut
     is_first: bool
     changed: bool
+    is_meaningful: bool
+    similarity: float | None
+    category: ChangeCategory | None
+    structured_diff: dict | None
     preview: str

@@ -6,7 +6,8 @@ change's business impact with a **local, CPU-bound LLM** relative to *your* busi
 profile, and pushes structured intelligence cards to a Notion CRM. It emails a
 digest on a schedule, and ships a Chrome extension for one-click "monitor this page."
 
-> Status: **Day 1** — scaffold, schema, and static scraper. See the roadmap below.
+> Status: **Day 2** — semantic + structured change detection, model-based
+> classifier, and the scheduled pipeline. See the roadmap below.
 
 ## What makes Argus different
 
@@ -74,10 +75,29 @@ curl -X POST http://localhost:8000/api/v1/competitors/<ID>/scrape
 curl http://localhost:8000/api/v1/competitors/<ID>/snapshots
 ```
 
+## How change detection works
+
+A new snapshot is flagged as a **meaningful change** when *either* signal fires:
+
+1. **Semantic drift** — cosine similarity between the new and previous page
+   embeddings (fastembed, `BAAI/bge-small-en-v1.5`, 384-dim, ONNX/CPU, ~130 MB)
+   drops below a configurable threshold (default `0.94`).
+2. **Structured field diff** — a tracked field (today: prices) changed.
+
+Why both? We measured it: a 20% price drop ($99→$79) scores **0.99** cosine —
+embeddings are essentially blind to it, while a meaningless date reword scores
+0.987. You cannot separate them by similarity alone. So the structured signal
+catches high-value changes embeddings miss, and renders a precise delta
+(`$99 → $79 (-20%)`) instead of a vague paragraph. Cosmetic noise is filtered on
+two layers: trafilatura strips nav/cookie/footer boilerplate during extraction,
+and the semantic threshold drops trivial rewords. Meaningful changes are then
+classified into six categories by a zero-shot nearest-centroid model (no rules).
+See `backend/tests/test_detection.py` for the five-case proof.
+
 ## Roadmap
 
 - **Day 1 ✅** Scaffold, DB schema, static scraper, add-URL API, retrieve content + hash diff.
-- **Day 2** Semantic change detection (fastembed + cosine threshold), noise filtering, model-based classifier, JS rendering, scheduler.
+- **Day 2 ✅** Semantic + structured change detection, two-layer noise filtering, model-based classifier, scheduled pipeline (in-process + CLI for GitHub Actions), manual trigger + intelligence feed endpoints. _(JS rendering via Playwright deferred to Day 2.5.)_
 - **Day 3** Local LLM impact scoring (business-context aware), Notion CRM with idempotency + retry queue.
 - **Day 4** Digest email, Chrome extension + badge count.
 - **Day 5** Full UI polish, error handling, deploy, README, demo.

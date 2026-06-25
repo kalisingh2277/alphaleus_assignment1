@@ -24,5 +24,18 @@ class Settings(BaseSettings):
     )
     request_timeout_seconds: float = 20.0
 
+    # Change detection. A new snapshot is a "meaningful" change when its cosine
+    # similarity to the previous snapshot drops BELOW this. Tuned so cosmetic
+    # edits (already boilerplate-stripped) stay above it. Structured field diffs
+    # (Day 2.5) override this for high-value changes embeddings smooth over.
+    semantic_change_threshold: float = 0.94
+    # Below this anchor-similarity the change category falls back to "other".
+    classifier_min_confidence: float = 0.45
+
+    # Scheduler (in-process APScheduler). Off by default so tests/dev don't fire
+    # background scrapes; the production pipeline runs via GitHub Actions instead.
+    enable_scheduler: bool = False
+    scrape_interval_hours: int = 6
+
 
 settings = Settings()

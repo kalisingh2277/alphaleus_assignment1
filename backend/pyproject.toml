@@ -15,10 +15,12 @@ dependencies = [
     "httpx>=0.28",
     "trafilatura>=1.12",
     "structlog>=24.4",
+    "fastembed>=0.4",
+    "apscheduler>=3.10",
 ]
 
-# Phased on purpose: embeddings/LLM deps (fastembed, llama-cpp-python) land on
-# Day 2/3 so Day 1 stays light and installs fast. See README roadmap.
+# Phased on purpose: the LLM dep (llama-cpp-python) lands on Day 3 so earlier
+# days stay light and install fast. See README roadmap.
 
 [dependency-groups]
 dev = [
@@ -33,6 +35,16 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency injectors are designed to be called in argument defaults.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
