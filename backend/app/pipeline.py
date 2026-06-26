@@ -17,6 +17,7 @@ from sqlalchemy import select
 from app.core.database import SessionLocal
 from app.models.competitor import Competitor, MonitorStatus
 from app.services import scraper
+from app.services.crm import crm_sync_pending
 from app.services.enrich import enrich_pending
 from app.services.ingest import ingest
 
@@ -34,6 +35,8 @@ async def run_pipeline() -> dict:
         "errors": 0,
         "scored": 0,
         "llm_errors": 0,
+        "synced": 0,
+        "crm_failed": 0,
     }
     async with SessionLocal() as session:
         competitors = (
@@ -63,6 +66,11 @@ async def run_pipeline() -> dict:
         enrich_stats = await enrich_pending(session)
         stats["scored"] = enrich_stats["scored"]
         stats["llm_errors"] = enrich_stats["llm_errors"]
+
+        # Push enriched cards to the CRM (and retry any previously-failed pushes).
+        crm_stats = await crm_sync_pending(session)
+        stats["synced"] = crm_stats["synced"]
+        stats["crm_failed"] = crm_stats["crm_failed"]
 
     log.info("pipeline_run", **stats)
     return stats

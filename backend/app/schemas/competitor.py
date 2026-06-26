@@ -70,6 +70,8 @@ class PipelineRunResult(BaseModel):
     errors: int
     scored: int
     llm_errors: int
+    synced: int
+    crm_failed: int
 
 
 class ScrapeResult(BaseModel):

@@ -6,8 +6,8 @@ change's business impact with a **local, CPU-bound LLM** relative to *your* busi
 profile, and pushes structured intelligence cards to a Notion CRM. It emails a
 digest on a schedule, and ships a Chrome extension for one-click "monitor this page."
 
-> Status: **Day 2** — semantic + structured change detection, model-based
-> classifier, and the scheduled pipeline. See the roadmap below.
+> Status: **Day 3** — local LLM impact scoring (business-context aware) and the
+> idempotent Notion CRM sync. See the roadmap below.
 
 ## What makes Argus different
 
@@ -41,7 +41,7 @@ Web UI (Next.js) ──┘                                      ▲
 | DB | Postgres + pgvector | embeddings live next to the data; one shared store |
 | Scrape | httpx + trafilatura (static); Playwright (JS, Day 2) | boilerplate-stripping extraction filters cosmetic noise |
 | Embeddings | fastembed (ONNX, CPU) | lightweight semantic comparison |
-| LLM | Qwen2.5-3B-Instruct (Q4_K_M) via llama-cpp-python | best non-generic output that fits free RAM |
+| LLM | llama3.2 (Llama-3.2-3B-Instruct, Q4) via **Ollama** | non-generic output that fits free RAM; runtime CPU detection (portable) |
 | CRM | Notion | demos well; idempotent via change-hash |
 | Frontend | Next.js + Tailwind | clean, polished views |
 
@@ -94,11 +94,47 @@ and the semantic threshold drops trivial rewords. Meaningful changes are then
 classified into six categories by a zero-shot nearest-centroid model (no rules).
 See `backend/tests/test_detection.py` for the five-case proof.
 
+## Local LLM (impact scoring)
+
+| | |
+|---|---|
+| Model | `llama3.2` — Llama-3.2-3B-Instruct, Q4_K_M |
+| Runtime | **Ollama** (separate process) |
+| Disk | ~2.0 GB |
+| RAM (resident when loaded) | **~2.6 GB** |
+| Avg inference | **~20 s / change** (≈100 output tokens) on a 12th-gen i5 CPU — well under the 90 s budget |
+| Output | JSON-schema-forced: `summary`, `impact_score` (1–10), `impact_justification`, `recommended_action` |
+
+**Why Ollama, not an in-process GGUF runtime?** A prebuilt `llama-cpp-python` CPU
+wheel crashed with an AVX-512 illegal instruction on a 12th-gen i5 (AVX2, no
+AVX-512). Ollama does runtime CPU-feature detection, so the same model runs on
+this dev box, GitHub Actions, and the deploy host without instruction-set issues.
+Only the enrichment pipeline talks to Ollama; the always-on web host never loads it.
+
+Scores are **relative to your business profile**: an overlapping change scores
+higher than an unrelated one (verified — a core-product feature scored 6 vs an
+unrelated facilities hire at 1).
+
+## Notion CRM
+
+Enriched cards are pushed to a Notion database. Sync is **idempotent** (keyed on
+each change's id — running the pipeline twice never duplicates a card) and
+**resilient** (a failed push sets `crm_status=failed` and retries next run; status
+shows in the feed). Sync is skipped until a token + database id are configured.
+
+```bash
+# 1. Create an integration: https://www.notion.so/my-integrations  (copy the secret)
+# 2. Make a Notion page, add the integration under ... → Connections, copy its id
+# 3. Create the database with the right schema in one command:
+NOTION_TOKEN=ntn_xxx NOTION_PARENT_PAGE_ID=<page-id> uv run python scripts/setup_notion.py
+# 4. Put NOTION_TOKEN + the printed NOTION_DATABASE_ID in your .env
+```
+
 ## Roadmap
 
 - **Day 1 ✅** Scaffold, DB schema, static scraper, add-URL API, retrieve content + hash diff.
 - **Day 2 ✅** Semantic + structured change detection, two-layer noise filtering, model-based classifier, scheduled pipeline (in-process + CLI for GitHub Actions), manual trigger + intelligence feed endpoints. _(JS rendering via Playwright deferred to Day 2.5.)_
-- **Day 3** Local LLM impact scoring (business-context aware), Notion CRM with idempotency + retry queue.
+- **Day 3 ✅** Local LLM impact scoring via Ollama (business-context aware, JSON-schema output), business profile + onboarding API, idempotent Notion CRM with retry queue, enrichment + CRM wired into the pipeline.
 - **Day 4** Digest email, Chrome extension + badge count.
 - **Day 5** Full UI polish, error handling, deploy, README, demo.
 

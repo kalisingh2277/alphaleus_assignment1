@@ -45,5 +45,10 @@ class Settings(BaseSettings):
     llm_model: str = "llama3.2"
     llm_temperature: float = 0.2
 
+    # Notion CRM. Sync is auto-skipped until both are set, so the app runs fine
+    # without Notion configured. Idempotency is keyed on the change id.
+    notion_token: str = ""
+    notion_database_id: str = ""
+
 
 settings = Settings()
