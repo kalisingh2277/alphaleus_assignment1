@@ -17,10 +17,15 @@ dependencies = [
     "structlog>=24.4",
     "fastembed>=0.4",
     "apscheduler>=3.10",
+    "ollama>=0.4",
+    "notion-client>=2.2",
 ]
 
-# Phased on purpose: the LLM dep (llama-cpp-python) lands on Day 3 so earlier
-# days stay light and install fast. See README roadmap.
+# The LLM runs via Ollama (a separate process with runtime CPU-feature detection,
+# so there are no fragile prebuilt-wheel instruction-set issues — we hit an
+# AVX-512 illegal-instruction crash with llama-cpp-python on a 12th-gen i5).
+# Only the enrichment path talks to Ollama, so the always-on web host never
+# needs Ollama or the model loaded.
 
 [dependency-groups]
 dev = [

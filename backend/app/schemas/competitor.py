@@ -68,6 +68,8 @@ class PipelineRunResult(BaseModel):
     meaningful: int
     filtered: int
     errors: int
+    scored: int
+    llm_errors: int
 
 
 class ScrapeResult(BaseModel):

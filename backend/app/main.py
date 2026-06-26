@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import changes, competitors, pipeline
+from app.api.v1 import changes, competitors, pipeline, profile
 from app.core.config import settings
 from app.core.database import init_db
 from app.scheduler import shutdown_scheduler, start_scheduler
@@ -39,3 +39,4 @@ async def health() -> dict[str, str]:
 app.include_router(competitors.router, prefix="/api/v1")
 app.include_router(changes.router, prefix="/api/v1")
 app.include_router(pipeline.router, prefix="/api/v1")
+app.include_router(profile.router, prefix="/api/v1")

@@ -37,5 +37,13 @@ class Settings(BaseSettings):
     enable_scheduler: bool = False
     scrape_interval_hours: int = 6
 
+    # LLM impact scoring via Ollama. Runtime CPU-feature detection means the same
+    # model runs on dev, CI, and the deploy host without instruction-set crashes.
+    # llama3.2 = Llama-3.2-3B-Instruct Q4 (~2 GB), ~20s/change on a CPU.
+    llm_enabled: bool = True
+    ollama_host: str = "http://localhost:11434"
+    llm_model: str = "llama3.2"
+    llm_temperature: float = 0.2
+
 
 settings = Settings()

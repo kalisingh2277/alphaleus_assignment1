@@ -17,13 +17,14 @@ from sqlalchemy import select
 from app.core.database import SessionLocal
 from app.models.competitor import Competitor, MonitorStatus
 from app.services import scraper
+from app.services.enrich import enrich_pending
 from app.services.ingest import ingest
 
 log = structlog.get_logger()
 
 
 async def run_pipeline() -> dict:
-    """Process all non-paused competitors. Returns a summary of the run."""
+    """Scrape + detect across competitors, then LLM-score new changes."""
     stats = {
         "competitors": 0,
         "scraped": 0,
@@ -31,6 +32,8 @@ async def run_pipeline() -> dict:
         "meaningful": 0,
         "filtered": 0,
         "errors": 0,
+        "scored": 0,
+        "llm_errors": 0,
     }
     async with SessionLocal() as session:
         competitors = (
@@ -55,6 +58,11 @@ async def run_pipeline() -> dict:
                     stats["meaningful"] += 1
                 else:
                     stats["filtered"] += 1
+
+        # Score newly-detected meaningful changes (and retry any unscored ones).
+        enrich_stats = await enrich_pending(session)
+        stats["scored"] = enrich_stats["scored"]
+        stats["llm_errors"] = enrich_stats["llm_errors"]
 
     log.info("pipeline_run", **stats)
     return stats
