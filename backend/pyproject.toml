@@ -18,7 +18,9 @@ dependencies = [
     "fastembed>=0.4",
     "apscheduler>=3.10",
     "ollama>=0.4",
-    "notion-client>=2.2",
+    # Uses Notion's current "data sources" API (a database holds data sources;
+    # rows/schema live on the data source, and query is data_sources.query).
+    "notion-client>=2.7",
 ]
 
 # The LLM runs via Ollama (a separate process with runtime CPU-feature detection,

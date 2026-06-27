@@ -58,12 +58,24 @@ def _properties(change: Change, competitor: Competitor) -> dict:
     }
 
 
+async def resolve_data_source_id(client: NotionClient, database_id: str) -> str:
+    """A Notion database now contains data sources; rows live on the data source.
+
+    We query/insert against the database's (single) data source.
+    """
+    db = await client.databases.retrieve(database_id=database_id)
+    sources = db.get("data_sources") or []
+    if not sources:
+        raise RuntimeError(f"Notion database {database_id} has no data source")
+    return sources[0]["id"]
+
+
 async def sync_change(
-    client: NotionClient, database_id: str, change: Change, competitor: Competitor
+    client: NotionClient, data_source_id: str, change: Change, competitor: Competitor
 ) -> tuple[str, bool]:
     """Push one change. Returns (notion_page_id, created). Idempotent by Argus ID."""
-    existing = await client.databases.query(
-        database_id=database_id,
+    existing = await client.data_sources.query(
+        data_source_id=data_source_id,
         filter={"property": _ARGUS_ID, "rich_text": {"equals": str(change.id)}},
     )
     results = existing.get("results", [])
@@ -71,7 +83,8 @@ async def sync_change(
         return results[0]["id"], False
 
     page = await client.pages.create(
-        parent={"database_id": database_id}, properties=_properties(change, competitor)
+        parent={"type": "data_source_id", "data_source_id": data_source_id},
+        properties=_properties(change, competitor),
     )
     return page["id"], True
 
@@ -83,6 +96,12 @@ async def crm_sync_pending(session: AsyncSession) -> dict:
         return stats  # CRM not configured — skip silently
 
     client = NotionClient(auth=settings.notion_token)
+    try:
+        data_source_id = await resolve_data_source_id(client, settings.notion_database_id)
+    except Exception as exc:  # noqa: BLE001 — bad config/token → skip, nothing to retry yet
+        log.warning("crm_resolve_failed", error=str(exc))
+        return stats
+
     pending = (
         await session.execute(
             select(Change)
@@ -98,9 +117,7 @@ async def crm_sync_pending(session: AsyncSession) -> dict:
     for change in pending:
         competitor = await session.get(Competitor, change.competitor_id)
         try:
-            page_id, _created = await sync_change(
-                client, settings.notion_database_id, change, competitor
-            )
+            page_id, _created = await sync_change(client, data_source_id, change, competitor)
         except Exception as exc:  # noqa: BLE001 — any Notion/transport error → retry next run
             change.crm_status = CrmStatus.failed
             stats["crm_failed"] += 1
