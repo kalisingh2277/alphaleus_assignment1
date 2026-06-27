@@ -77,22 +77,30 @@ curl http://localhost:8000/api/v1/competitors/<ID>/snapshots
 
 ## How change detection works
 
-A new snapshot is flagged as a **meaningful change** when *either* signal fires:
+A new snapshot is flagged as a **meaningful change** when *any* of three signals fires:
 
 1. **Semantic drift** — cosine similarity between the new and previous page
    embeddings (fastembed, `BAAI/bge-small-en-v1.5`, 384-dim, ONNX/CPU, ~130 MB)
    drops below a configurable threshold (default `0.94`).
 2. **Structured field diff** — a tracked field (today: prices) changed.
+3. **Substantial new content** — a block of genuinely new text appeared (a new
+   post, job, feature, or announcement). A reword nets ~0 new characters, so noise
+   stays filtered.
 
-Why both? We measured it: a 20% price drop ($99→$79) scores **0.99** cosine —
-embeddings are essentially blind to it, while a meaningless date reword scores
-0.987. You cannot separate them by similarity alone. So the structured signal
-catches high-value changes embeddings miss, and renders a precise delta
-(`$99 → $79 (-20%)`) instead of a vague paragraph. Cosmetic noise is filtered on
-two layers: trafilatura strips nav/cookie/footer boilerplate during extraction,
-and the semantic threshold drops trivial rewords. Meaningful changes are then
-classified into six categories by a zero-shot nearest-centroid model (no rules).
-See `backend/tests/test_detection.py` for the five-case proof.
+Why three? We measured it. A 20% price drop ($99→$79) scores **0.99** cosine —
+embeddings are essentially blind to it. And on a real, growing page an added
+paragraph barely moves the overall similarity (a competitor's feature launch
+measured **0.98**), yet a meaningless date reword sits at 0.987 — so you cannot
+separate signal from noise by similarity alone. The structured signal catches
+high-value field changes (and renders a precise `$99 → $79 (-20%)` delta), and
+the new-content signal catches incremental additions. Cosmetic noise is filtered
+on two layers: trafilatura strips nav/cookie/footer boilerplate during extraction,
+and the semantic threshold drops trivial rewords.
+
+Meaningful changes are classified into six categories — a fast zero-shot
+nearest-centroid model (no rules) gives a provisional label at detection time,
+which the **LLM refines authoritatively** during impact scoring. See
+`backend/tests/test_detection.py` for the five-case proof.
 
 ## Local LLM (impact scoring)
 
@@ -103,7 +111,7 @@ See `backend/tests/test_detection.py` for the five-case proof.
 | Disk | ~2.0 GB |
 | RAM (resident when loaded) | **~2.6 GB** |
 | Avg inference | **~20 s / change** (≈100 output tokens) on a 12th-gen i5 CPU — well under the 90 s budget |
-| Output | JSON-schema-forced: `summary`, `impact_score` (1–10), `impact_justification`, `recommended_action` |
+| Output | JSON-schema-forced: `summary`, `impact_score` (1–10), `impact_justification`, `recommended_action`, `category` |
 
 **Why Ollama, not an in-process GGUF runtime?** A prebuilt `llama-cpp-python` CPU
 wheel crashed with an AVX-512 illegal instruction on a 12th-gen i5 (AVX2, no

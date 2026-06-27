@@ -31,7 +31,12 @@ def _decide(old_html: str, new_html: str) -> dict:
     sdiff = structured.diff_fields(
         structured.extract_fields(old_text), structured.extract_fields(new_text)
     )
-    meaningful = cosine < settings.semantic_change_threshold or sdiff is not None
+    added = classifier.changed_text(old_text, new_text)
+    removed = classifier.changed_text(new_text, old_text)
+    substantial_new = (len(added) - len(removed)) >= settings.min_new_content_chars
+    meaningful = (
+        cosine < settings.semantic_change_threshold or sdiff is not None or substantial_new
+    )
     if not meaningful:
         return {"meaningful": False, "category": None, "delta": None}
     if sdiff and "prices" in sdiff:

@@ -7,13 +7,15 @@ outage doesn't lose a card — it gets picked up next run.
 
 from __future__ import annotations
 
+import contextlib
+
 import structlog
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.models.business import SINGLETON_ID, BusinessProfile
-from app.models.change import Change
+from app.models.change import Change, ChangeCategory
 from app.models.competitor import Competitor
 from app.models.snapshot import PageSnapshot
 from app.services import llm
@@ -74,7 +76,6 @@ async def enrich_pending(session: AsyncSession) -> dict:
             result = await llm.score_change(
                 profile,
                 competitor.name if competitor else "Unknown",
-                change.category.value if change.category else "other",
                 detail,
             )
         except llm.LLMError as exc:
@@ -86,6 +87,10 @@ async def enrich_pending(session: AsyncSession) -> dict:
         change.impact_score = result.impact_score
         change.impact_justification = result.impact_justification
         change.recommended_action = result.recommended_action
+        # The LLM is the authoritative classifier; it refines the fast embeddings
+        # guess made at detection time. Keep the guess if the LLM returns something odd.
+        with contextlib.suppress(ValueError):
+            change.category = ChangeCategory(result.category)
         stats["scored"] += 1
 
     await session.commit()

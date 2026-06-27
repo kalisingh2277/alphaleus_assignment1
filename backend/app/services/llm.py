@@ -32,6 +32,10 @@ class ImpactResult:
     impact_score: int
     impact_justification: str
     recommended_action: str
+    category: str  # one of the six categories, as judged by the LLM
+
+
+_CATEGORIES = ["pricing", "product", "hiring", "messaging", "leadership", "other"]
 
 
 _SYSTEM = (
@@ -39,7 +43,8 @@ _SYSTEM = (
     "change matters to the USER'S OWN business, not in the abstract. Score impact 1-10: "
     "10 = a direct threat to the user's core product or pricing; 1 = irrelevant to them. "
     "A change overlapping the user's core product, or undercutting their price, MUST score "
-    "higher than a change in an unrelated area. Be specific and reference the user's business."
+    "higher than a change in an unrelated area. Be specific and reference the user's business. "
+    "Decide the category yourself from what changed."
 )
 
 # Ollama enforces this JSON schema on the output, so we always get parseable fields.
@@ -50,12 +55,19 @@ _SCHEMA = {
         "impact_score": {"type": "integer"},
         "impact_justification": {"type": "string"},
         "recommended_action": {"type": "string"},
+        "category": {"type": "string", "enum": _CATEGORIES},
     },
-    "required": ["summary", "impact_score", "impact_justification", "recommended_action"],
+    "required": [
+        "summary",
+        "impact_score",
+        "impact_justification",
+        "recommended_action",
+        "category",
+    ],
 }
 
 
-def _user_prompt(profile: dict, competitor: str, category: str, detail: str) -> str:
+def _user_prompt(profile: dict, competitor: str, detail: str) -> str:
     return (
         "OUR BUSINESS:\n"
         f"- Product: {profile.get('product') or '(unspecified)'}\n"
@@ -63,15 +75,15 @@ def _user_prompt(profile: dict, competitor: str, category: str, detail: str) -> 
         f"- Price point: {profile.get('price_point') or '(unspecified)'}\n\n"
         "COMPETITOR CHANGE:\n"
         f"- Competitor: {competitor}\n"
-        f"- Category: {category}\n"
         f"- What changed: {detail}\n\n"
         "Return a one-paragraph summary of what changed and why it matters to OUR business, "
-        "an integer impact_score 1-10, a one-sentence justification, and a one-sentence "
-        "recommended action for our business."
+        "an integer impact_score 1-10, a one-sentence justification, a one-sentence "
+        "recommended action for our business, and the single best category for this change "
+        "(pricing, product, hiring, messaging, leadership, or other)."
     )
 
 
-async def score_change(profile: dict, competitor: str, category: str, detail: str) -> ImpactResult:
+async def score_change(profile: dict, competitor: str, detail: str) -> ImpactResult:
     """Score one change with the LLM, relative to the user's business profile."""
     client = AsyncClient(host=settings.ollama_host)
     try:
@@ -79,7 +91,7 @@ async def score_change(profile: dict, competitor: str, category: str, detail: st
             model=settings.llm_model,
             messages=[
                 {"role": "system", "content": _SYSTEM},
-                {"role": "user", "content": _user_prompt(profile, competitor, category, detail)},
+                {"role": "user", "content": _user_prompt(profile, competitor, detail)},
             ],
             format=_SCHEMA,
             options={"temperature": settings.llm_temperature},
@@ -97,9 +109,14 @@ async def score_change(profile: dict, competitor: str, category: str, detail: st
     except (KeyError, ValueError, TypeError):
         score = 5  # neutral fallback rather than failing the whole change
 
+    category = str(data.get("category", "other")).strip().lower()
+    if category not in _CATEGORIES:
+        category = "other"
+
     return ImpactResult(
         summary=str(data.get("summary", "")).strip(),
         impact_score=score,
         impact_justification=str(data.get("impact_justification", "")).strip(),
         recommended_action=str(data.get("recommended_action", "")).strip(),
+        category=category,
     )

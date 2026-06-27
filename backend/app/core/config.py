@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     semantic_change_threshold: float = 0.94
     # Below this anchor-similarity the change category falls back to "other".
     classifier_min_confidence: float = 0.45
+    # A substantial block of genuinely new text (a new post, job, feature, or
+    # announcement) is a meaningful change even when overall page similarity stays
+    # high — this catches incremental additions that full-page embeddings miss.
+    # A reword nets ~0 new chars, so cosmetic noise stays below this.
+    min_new_content_chars: int = 120
 
     # Scheduler (in-process APScheduler). Off by default so tests/dev don't fire
     # background scrapes; the production pipeline runs via GitHub Actions instead.

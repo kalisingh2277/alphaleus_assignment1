@@ -77,10 +77,19 @@ async def ingest(session: AsyncSession, competitor: Competitor) -> IngestOutcome
         )
         structured_diff = structured.diff_fields(prev.structured or {}, fields)
 
-        # Meaningful if EITHER signal fires: semantic drift OR a tracked field
-        # changed. The structured signal catches what embeddings miss (pricing).
+        # Net new text: added sentences minus removed sentences. A genuine
+        # addition (new feature/job/announcement) nets strongly positive; a
+        # reword nets ~0, so cosmetic edits don't trip this.
+        added = classifier.changed_text(prev.clean_text, out.clean_text)
+        removed = classifier.changed_text(out.clean_text, prev.clean_text)
+        substantial_new = (len(added) - len(removed)) >= settings.min_new_content_chars
+
+        # Meaningful if ANY signal fires: semantic drift, a changed tracked field,
+        # or a substantial block of new content that full-page similarity smooths over.
         is_meaningful = (
-            similarity < settings.semantic_change_threshold or structured_diff is not None
+            similarity < settings.semantic_change_threshold
+            or structured_diff is not None
+            or substantial_new
         )
 
         category: ChangeCategory | None = None
