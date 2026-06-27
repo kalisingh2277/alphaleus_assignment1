@@ -15,10 +15,12 @@ from app.schemas.competitor import (
     ChangeOut,
     CompetitorCreate,
     CompetitorOut,
+    CompetitorUpdate,
     ScrapeResult,
     SnapshotOut,
+    ThesisOut,
 )
-from app.services import scraper
+from app.services import scraper, thesis
 from app.services.ingest import ingest
 
 router = APIRouter(prefix="/competitors", tags=["competitors"])
@@ -59,6 +61,40 @@ async def get_competitor(
     competitor_id: uuid.UUID, session: AsyncSession = Depends(get_session)
 ) -> Competitor:
     return await _get_or_404(session, competitor_id)
+
+
+@router.patch("/{competitor_id}", response_model=CompetitorOut)
+async def update_competitor(
+    competitor_id: uuid.UUID,
+    payload: CompetitorUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> Competitor:
+    """Update a competitor's monitoring settings (name/scope/interval/status)."""
+    competitor = await _get_or_404(session, competitor_id)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(competitor, field, value)
+    await session.commit()
+    await session.refresh(competitor)
+    return competitor
+
+
+@router.get("/{competitor_id}/thesis", response_model=ThesisOut)
+async def get_thesis(
+    competitor_id: uuid.UUID, session: AsyncSession = Depends(get_session)
+) -> ThesisOut:
+    """The strategic synthesis across this competitor's changes (cached)."""
+    competitor = await _get_or_404(session, competitor_id)
+    result = await thesis.get_or_generate(session, competitor)
+    if result is None:
+        return ThesisOut(available=False)
+    return ThesisOut(
+        available=True,
+        headline=result.headline,
+        narrative=result.narrative,
+        recommended_focus=result.recommended_focus,
+        change_count=result.change_count,
+        updated_at=result.updated_at,
+    )
 
 
 @router.post("/{competitor_id}/scrape", response_model=ScrapeResult)

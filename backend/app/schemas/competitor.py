@@ -29,6 +29,24 @@ class CompetitorOut(BaseModel):
     last_error: str | None
 
 
+class CompetitorUpdate(BaseModel):
+    """Partial update of a competitor's monitoring settings."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    monitor_scope: MonitorScope | None = None
+    check_interval_hours: int | None = Field(default=None, ge=6)
+    status: MonitorStatus | None = None
+
+
+class ThesisOut(BaseModel):
+    available: bool
+    headline: str | None = None
+    narrative: str | None = None
+    recommended_focus: str | None = None
+    change_count: int = 0
+    updated_at: datetime | None = None
+
+
 class SnapshotOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

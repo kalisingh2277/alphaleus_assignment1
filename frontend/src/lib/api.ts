@@ -60,6 +60,31 @@ export interface BusinessProfile {
   price_point: string
 }
 
+export interface Thesis {
+  available: boolean
+  headline: string | null
+  narrative: string | null
+  recommended_focus: string | null
+  change_count: number
+  updated_at: string | null
+}
+
+export interface ScrapeResult {
+  is_first: boolean
+  changed: boolean
+  is_meaningful: boolean
+  category: ChangeCategory | null
+  structured_diff: StructuredDiff | null
+  preview: string
+}
+
+export type CompetitorPatch = Partial<{
+  name: string
+  monitor_scope: MonitorScope
+  check_interval_hours: number
+  status: MonitorStatus
+}>
+
 export interface PipelineRunResult {
   competitors: number
   scraped: number
@@ -100,6 +125,11 @@ export const api = {
   getCompetitor: (id: string) => req<Competitor>(`/competitors/${id}`),
   addCompetitor: (body: { name: string; url: string; monitor_scope: MonitorScope }) =>
     req<Competitor>('/competitors', { method: 'POST', body: JSON.stringify(body) }),
+  updateCompetitor: (id: string, body: CompetitorPatch) =>
+    req<Competitor>(`/competitors/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  scrapeNow: (id: string) =>
+    req<ScrapeResult>(`/competitors/${id}/scrape`, { method: 'POST' }),
+  getThesis: (id: string) => req<Thesis>(`/competitors/${id}/thesis`),
   competitorChanges: (id: string, meaningfulOnly = true) =>
     req<Change[]>(`/competitors/${id}/changes?meaningful_only=${meaningfulOnly}`),
   feed: (params: { competitor_id?: string; category?: string; meaningful_only?: boolean } = {}) => {

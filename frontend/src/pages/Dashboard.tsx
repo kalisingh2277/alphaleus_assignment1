@@ -32,13 +32,13 @@ export default function Dashboard() {
           <button
             onClick={() => run.mutate()}
             disabled={run.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${run.isPending ? 'animate-spin' : ''}`} /> Run check
           </button>
           <button
             onClick={() => setShowAdd((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
           >
             <Plus className="h-4 w-4" /> Add competitor
           </button>

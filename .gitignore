@@ -18,8 +18,9 @@ node_modules/
 dist/
 build/
 
-# Models (downloaded at build/run time, never committed)
-models/
+# Downloaded ML model binaries (never committed). Anchored to the repo root so
+# this does NOT match the backend/app/models/ source package.
+/models/
 *.gguf
 *.onnx
 
