@@ -5,16 +5,41 @@ only; pass ``meaningful_only=false`` to also see what the noise filter caught.
 """
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.security import require_api_key
+from app.models.app_state import STATE_ID, AppState
 from app.models.change import Change, ChangeCategory
 from app.schemas.competitor import ChangeOut
 
 router = APIRouter(prefix="/changes", tags=["changes"])
+
+
+@router.get("/unread-count", dependencies=[Depends(require_api_key)])
+async def unread_count(session: AsyncSession = Depends(get_session)) -> dict:
+    """Number of meaningful changes since the feed was last viewed (badge count)."""
+    state = await session.get(AppState, STATE_ID)
+    stmt = select(func.count()).select_from(Change).where(Change.is_meaningful.is_(True))
+    if state is not None and state.last_feed_viewed_at is not None:
+        stmt = stmt.where(Change.detected_at > state.last_feed_viewed_at)
+    return {"unread": (await session.execute(stmt)).scalar_one()}
+
+
+@router.post("/mark-read")
+async def mark_read(session: AsyncSession = Depends(get_session)) -> dict:
+    """Mark the feed as viewed now (resets the unread badge)."""
+    state = await session.get(AppState, STATE_ID)
+    if state is None:
+        state = AppState(id=STATE_ID)
+        session.add(state)
+    state.last_feed_viewed_at = datetime.now(UTC)
+    await session.commit()
+    return {"ok": True}
 
 
 @router.get("", response_model=list[ChangeOut])

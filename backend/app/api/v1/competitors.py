@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.security import require_api_key
 from app.models.change import Change
 from app.models.competitor import Competitor
 from app.models.snapshot import PageSnapshot
@@ -30,7 +31,9 @@ async def _get_or_404(session: AsyncSession, competitor_id: uuid.UUID) -> Compet
     return competitor
 
 
-@router.post("", response_model=CompetitorOut, status_code=201)
+@router.post(
+    "", response_model=CompetitorOut, status_code=201, dependencies=[Depends(require_api_key)]
+)
 async def add_competitor(
     payload: CompetitorCreate, session: AsyncSession = Depends(get_session)
 ) -> Competitor:

@@ -50,5 +50,18 @@ class Settings(BaseSettings):
     notion_token: str = ""
     notion_database_id: str = ""
 
+    # Digest email (SMTP). Auto-skipped until host+user+password+recipient set.
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    digest_from: str = ""  # defaults to smtp_user
+    digest_to: str = ""
+    digest_frequency: str = "daily"  # daily | weekly (the cron drives actual cadence)
+
+    # API key for the Chrome extension / external clients. Empty = endpoints open
+    # (dev); set = guarded endpoints require a matching X-API-Key header.
+    api_key: str = ""
+
 
 settings = Settings()

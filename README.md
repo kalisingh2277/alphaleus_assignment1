@@ -6,8 +6,8 @@ change's business impact with a **local, CPU-bound LLM** relative to *your* busi
 profile, and pushes structured intelligence cards to a Notion CRM. It emails a
 digest on a schedule, and ships a Chrome extension for one-click "monitor this page."
 
-> Status: **Day 3** — local LLM impact scoring (business-context aware) and the
-> idempotent Notion CRM sync. See the roadmap below.
+> Status: **Day 4** — digest email and the Chrome extension (one-click add +
+> unread badge). See the roadmap below.
 
 ## What makes Argus different
 
@@ -130,12 +130,36 @@ NOTION_TOKEN=ntn_xxx NOTION_PARENT_PAGE_ID=<page-id> uv run python scripts/setup
 # 4. Put NOTION_TOKEN + the printed NOTION_DATABASE_ID in your .env
 ```
 
+## Digest email
+
+On a daily/weekly schedule, Argus emails a digest of changes since the last one —
+grouped by competitor, sorted by impact, with the **top 3 highlighted**. It is
+**suppressed when nothing new** was detected, and skipped entirely until SMTP is
+configured. Use Gmail with an [app password](https://support.google.com/accounts/answer/185833):
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=<16-char app password>
+DIGEST_TO=you@gmail.com
+```
+
+Trigger manually with `POST /api/v1/digest/send` or `python -m app.digest`.
+
+## Chrome extension
+
+A Manifest V3 extension (`extension/`) loads unpacked with **no build step**. One
+click adds the current tab to the monitored list (name + section selector), using
+a pre-configured **API key**; a toolbar **badge** shows unread intelligence cards.
+See [extension/README.md](extension/README.md) to load it.
+
 ## Roadmap
 
 - **Day 1 ✅** Scaffold, DB schema, static scraper, add-URL API, retrieve content + hash diff.
 - **Day 2 ✅** Semantic + structured change detection, two-layer noise filtering, model-based classifier, scheduled pipeline (in-process + CLI for GitHub Actions), manual trigger + intelligence feed endpoints. _(JS rendering via Playwright deferred to Day 2.5.)_
 - **Day 3 ✅** Local LLM impact scoring via Ollama (business-context aware, JSON-schema output), business profile + onboarding API, idempotent Notion CRM with retry queue, enrichment + CRM wired into the pipeline.
-- **Day 4** Digest email, Chrome extension + badge count.
+- **Day 4 ✅** Digest email (grouped, ranked, top-3, suppressed when empty), API-key auth, unread badge-count endpoint, Manifest V3 Chrome extension (one-click add + badge).
 - **Day 5** Full UI polish, error handling, deploy, README, demo.
 
 ## License

@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: system-ui, "Segoe UI", Arial, sans-serif; width: 300px; margin: 0; padding: 14px; }
+    h1 { font-size: 15px; margin: 0 0 10px; }
+    label { display: block; font-size: 12px; color: #555; margin: 8px 0 3px; }
+    input, select { width: 100%; box-sizing: border-box; padding: 6px; font-size: 13px;
+                    border: 1px solid #ccc; border-radius: 6px; }
+    button { width: 100%; margin-top: 12px; padding: 9px; font-size: 14px; font-weight: 600;
+             color: #fff; background: #2563eb; border: 0; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    #status { font-size: 12px; margin-top: 10px; min-height: 16px; }
+    .ok { color: #15803d; } .err { color: #b91c1c; }
+    a { font-size: 11px; color: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Add to Argus</h1>
+  <label for="label">Competitor name</label>
+  <input id="label" type="text" placeholder="e.g. Acme Corp" />
+  <label for="url">URL</label>
+  <input id="url" type="text" />
+  <label for="scope">Monitor</label>
+  <select id="scope">
+    <option value="full_page">Full page</option>
+    <option value="pricing">Pricing section only</option>
+    <option value="careers">Careers section only</option>
+  </select>
+  <button id="add">Add competitor</button>
+  <div id="status"></div>
+  <div style="margin-top:8px"><a id="openOptions" href="#">Settings (API key &amp; backend URL)</a></div>
+  <script src="popup.js"></script>
+</body>
+</html>

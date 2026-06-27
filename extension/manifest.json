@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Argus — Competitor Intelligence",
+  "version": "1.0.0",
+  "description": "Monitor the current page with Argus in one click, and see a badge of unread intelligence cards.",
+  "permissions": ["activeTab", "tabs", "storage", "alarms"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Add this page to Argus"
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "background.js"
+  }
+}
