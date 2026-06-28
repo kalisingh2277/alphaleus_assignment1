@@ -1,0 +1,50 @@
+name: Argus pipeline
+
+# The autonomous loop: scrape every active competitor, detect meaningful changes,
+# score them with the local LLM, and sync to the CRM. Runs on GitHub Actions so the
+# heavy work (Ollama + scraping) stays off the always-on web host.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours
+  workflow_dispatch: {}
+
+concurrency:
+  group: argus-pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+      LLM_ENABLED: "true"
+      LLM_MODEL: llama3.2
+      OLLAMA_HOST: http://127.0.0.1:11434
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen --no-group dev
+
+      - name: Install Ollama and pull the model
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf "$OLLAMA_HOST/api/version" >/dev/null && break || sleep 2
+          done
+          ollama pull "$LLM_MODEL"
+
+      - name: Run the pipeline
+        working-directory: backend
+        run: uv run python -m app.pipeline

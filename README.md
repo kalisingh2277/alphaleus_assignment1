@@ -16,8 +16,11 @@ change's business impact with a **local, CPU-bound LLM** relative to *your* busi
 profile, and pushes structured intelligence cards to a Notion CRM. It emails a
 digest on a schedule, and ships a Chrome extension for one-click "monitor this page."
 
-> Status: **Day 4** — digest email and the Chrome extension (one-click add +
-> unread badge). See the roadmap below.
+> ### 🔴 Live demo — **https://kalisingh2277-argus.hf.space**
+> **Source** — https://github.com/kalisingh2277/alphaleus_assignment1
+>
+> _Free-tier hosting sleeps when idle: if the first load is blank, refresh once and
+> it wakes (the database + Space cold-start in a few seconds)._
 
 ## What makes Argus different
 
@@ -32,16 +35,22 @@ digest on a schedule, and ships a Chrome extension for one-click "monitor this p
   changes for a competitor into a strategic narrative ("hiring + pricing drop +
   new feature → going downmarket with an AI play"), which is the analyst's actual job.
 
-## Architecture (target)
+## Architecture
 
 ```
-Chrome extension ──┐
-                   ├─► FastAPI (web app + API)  ◄──► Postgres + pgvector  (shared)
-Web UI (Next.js) ──┘                                      ▲
-                                                          │ writes intelligence cards
-                            GitHub Actions (cron, free) ──┘
-                            scrape → semantic diff → classify → LLM impact → Notion + email
+Chrome extension ─┐
+                  ├─► FastAPI + React SPA  ◄──► Neon Postgres + pgvector  (shared)
+Browser (React) ──┘   (Hugging Face Space)            ▲
+                                                      │ writes intelligence cards
+                          GitHub Actions (cron) ──────┘
+                          scrape → semantic + structured diff → classify
+                                 → LLM impact (Ollama) → Notion + email digest
 ```
+
+The always-on web host (a Hugging Face Docker Space) serves the UI + API and reads
+from Postgres. The LLM-heavy scrape/score pipeline runs **separately** on GitHub
+Actions, so Ollama and the scraper are never resident on the web host — which keeps
+the whole thing inside free-tier memory. Both share one Neon database.
 
 ## Tech stack
 
@@ -52,8 +61,9 @@ Web UI (Next.js) ──┘                                      ▲
 | Scrape | httpx + trafilatura (static); Playwright (JS, Day 2) | boilerplate-stripping extraction filters cosmetic noise |
 | Embeddings | fastembed (ONNX, CPU) | lightweight semantic comparison |
 | LLM | llama3.2 (Llama-3.2-3B-Instruct, Q4) via **Ollama** | non-generic output that fits free RAM; runtime CPU detection (portable) |
-| CRM | Notion | demos well; idempotent via change-hash |
-| Frontend | Next.js + Tailwind | clean, polished views |
+| CRM | Notion | demos well; idempotent via change id |
+| Frontend | React + Vite + Tailwind v4 | clean SPA; builds to static served by FastAPI |
+| Hosting | Hugging Face Space (Docker) + Neon Postgres + GitHub Actions | $0, no credit card |
 
 ## Local development
 
@@ -172,14 +182,44 @@ click adds the current tab to the monitored list (name + section selector), usin
 a pre-configured **API key**; a toolbar **badge** shows unread intelligence cards.
 See [extension/README.md](extension/README.md) to load it.
 
+## Deployment
+
+A single **$0** stack (no credit card):
+
+- **Web app** — a multi-stage `Dockerfile` builds the React frontend and serves it +
+  the API from one FastAPI process. Deployed as a **Hugging Face Space** (Docker, free
+  CPU) with `LLM_ENABLED=false` — the web host never loads Ollama.
+- **Database** — **Neon** Postgres (serverless free tier). The app normalises the
+  connection URL for asyncpg + SSL and retries on boot (Neon suspends when idle).
+- **Pipeline** — runs on **GitHub Actions** (cron): installs Ollama, pulls the model,
+  and runs `python -m app.pipeline` against the shared database (see `.github/workflows/`).
+
+Secrets: `DATABASE_URL` on the Space; `DATABASE_URL` + `NOTION_TOKEN` +
+`NOTION_DATABASE_ID` (+ optional `SMTP_*`) as GitHub Actions secrets. Redeploy the web
+app by pushing to the Space's git remote — it rebuilds the image.
+
 ## Roadmap
 
 - **Day 1 ✅** Scaffold, DB schema, static scraper, add-URL API, retrieve content + hash diff.
 - **Day 2 ✅** Semantic + structured change detection, two-layer noise filtering, model-based classifier, scheduled pipeline (in-process + CLI for GitHub Actions), manual trigger + intelligence feed endpoints. _(JS rendering via Playwright deferred to Day 2.5.)_
 - **Day 3 ✅** Local LLM impact scoring via Ollama (business-context aware, JSON-schema output), business profile + onboarding API, idempotent Notion CRM with retry queue, enrichment + CRM wired into the pipeline.
 - **Day 4 ✅** Digest email (grouped, ranked, top-3, suppressed when empty), API-key auth, unread badge-count endpoint, Manifest V3 Chrome extension (one-click add + badge).
-- **Day 5** Full UI polish, error handling, deploy, README, demo.
+- **Day 5 ✅** Full React UI (dashboard, intelligence feed, competitor detail + thesis, onboarding, settings), single-service serving, **deployed live** (Hugging Face Space + Neon + GitHub Actions), README.
+
+## Known limitations
+
+- **Free-tier cold starts.** The HF Space sleeps after ~48h idle and Neon's compute
+  suspends after ~5 min; the first request after idle wakes them in a few seconds
+  (a refresh clears any blank first load).
+- **Small-model scoring varies.** A 3B model is fast and free but less consistent than
+  a frontier model — impact scores are directional, not precise.
+- **Demo competitors use placeholder URLs**, so the scheduled pipeline finds no new
+  changes for them; add a real competitor URL to see live detection end-to-end.
+- **Prices are the one tracked structured field today** — headcount, plan names, and
+  exec changes are the natural next extension.
+- **JS-rendered pages** (Playwright) and **screenshot archiving** are not yet implemented.
 
 ## License
 
 MIT
+

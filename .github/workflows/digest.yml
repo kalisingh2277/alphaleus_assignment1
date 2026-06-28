@@ -1,0 +1,38 @@
+name: Argus digest email
+
+# Sends the daily digest of new intelligence. Lightweight (no Ollama): it reads the
+# shared database and emails via SMTP. Auto-skips if SMTP isn't configured or there
+# are no new changes since the last digest.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # daily at 13:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST || 'smtp.gmail.com' }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT || '587' }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      DIGEST_TO: ${{ secrets.DIGEST_TO }}
+      LLM_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen --no-group dev
+
+      - name: Send the digest
+        working-directory: backend
+        run: uv run python -m app.digest
