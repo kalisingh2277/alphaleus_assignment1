@@ -44,14 +44,32 @@ def _prepare_url(url: str) -> tuple[str, dict]:
 
 _db_url, _connect_args = _prepare_url(settings.database_url)
 engine = create_async_engine(
-    _db_url, connect_args=_connect_args, pool_pre_ping=True, future=True
+    _db_url,
+    connect_args=_connect_args,
+    pool_pre_ping=True,
+    pool_recycle=180,  # recycle before a serverless DB (Neon) suspends and drops it
+    future=True,
 )
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency that yields a request-scoped async session."""
+    """FastAPI dependency that yields a request-scoped async session.
+
+    Pings (with a short retry) before handing over the session: a serverless DB
+    suspends when idle, so the first request after a lull can hit a cold/stale
+    connection. Retrying wakes it instead of surfacing a 500 to the user.
+    """
     async with SessionLocal() as session:
+        for attempt in range(4):
+            try:
+                await session.execute(text("SELECT 1"))
+                break
+            except Exception:  # noqa: BLE001 — transient cold-start/stale-connection
+                await session.rollback()
+                if attempt == 3:
+                    raise
+                await asyncio.sleep(1.5)
         yield session
 
 
