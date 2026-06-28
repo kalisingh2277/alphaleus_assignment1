@@ -34,7 +34,9 @@ class MonitorStatus(str, enum.Enum):
 class Competitor(Base):
     __tablename__ = "competitors"
 
-    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     name: Mapped[str] = mapped_column(String(200))
     url: Mapped[str] = mapped_column(String(2000))
 

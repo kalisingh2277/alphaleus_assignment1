@@ -1,3 +1,13 @@
+---
+title: Argus
+emoji: 👁️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Argus — Autonomous Competitor Intelligence Engine
 
 Argus watches a configurable list of competitor web pages on a schedule, detects

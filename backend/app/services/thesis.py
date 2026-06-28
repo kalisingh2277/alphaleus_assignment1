@@ -105,6 +105,10 @@ async def get_or_generate(session: AsyncSession, competitor: Competitor) -> Comp
     existing = await session.get(CompetitorThesis, competitor.id)
     if existing is not None and existing.change_count == len(changes):
         return existing
+    if not settings.llm_enabled:
+        # The always-on web host doesn't run Ollama; serve the cached thesis (if
+        # any). Fresh generation happens on the LLM-enabled pipeline run.
+        return existing
 
     profile = await _profile_dict(session)
     data = await _generate(profile, competitor.name, changes)

@@ -53,7 +53,9 @@ class CrmStatus(str, enum.Enum):
 class Change(Base):
     __tablename__ = "changes"
 
-    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
     competitor_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("competitors.id", ondelete="CASCADE"), index=True
     )
