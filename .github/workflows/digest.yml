@@ -1,8 +1,8 @@
 name: Argus digest email
 
-# Sends the daily digest of new intelligence. Lightweight (no Ollama): it reads the
-# shared database and emails via SMTP. Auto-skips if SMTP isn't configured or there
-# are no new changes since the last digest.
+# Sends the daily digest of new intelligence. Lightweight (no Ollama): reads the
+# shared database and emails via SMTP. Skips cleanly if DATABASE_URL isn't set;
+# the app itself also auto-skips if SMTP is unconfigured or there's nothing new.
 
 on:
   schedule:
@@ -22,17 +22,31 @@ jobs:
       DIGEST_TO: ${{ secrets.DIGEST_TO }}
       LLM_ENABLED: "false"
     steps:
+      - name: Check configuration
+        id: cfg
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DATABASE_URL secret not set — skipping digest."
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.cfg.outputs.run == 'true'
 
       - name: Set up uv + Python
+        if: steps.cfg.outputs.run == 'true'
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
 
       - name: Install backend dependencies
+        if: steps.cfg.outputs.run == 'true'
         working-directory: backend
         run: uv sync --frozen --no-group dev
 
       - name: Send the digest
+        if: steps.cfg.outputs.run == 'true'
         working-directory: backend
         run: uv run python -m app.digest

@@ -3,6 +3,10 @@ name: Argus pipeline
 # The autonomous loop: scrape every active competitor, detect meaningful changes,
 # score them with the local LLM, and sync to the CRM. Runs on GitHub Actions so the
 # heavy work (Ollama + scraping) stays off the always-on web host.
+#
+# It only does real work once repo secrets are configured (Settings -> Secrets and
+# variables -> Actions): DATABASE_URL, NOTION_TOKEN, NOTION_DATABASE_ID. Until then
+# each run skips cleanly (succeeds) instead of failing.
 
 on:
   schedule:
@@ -25,18 +29,32 @@ jobs:
       LLM_MODEL: llama3.2
       OLLAMA_HOST: http://127.0.0.1:11434
     steps:
+      - name: Check configuration
+        id: cfg
+        run: |
+          if [ -n "$DATABASE_URL" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::DATABASE_URL secret not set — skipping. Add repo secrets to activate the pipeline."
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.cfg.outputs.run == 'true'
 
       - name: Set up uv + Python
+        if: steps.cfg.outputs.run == 'true'
         uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
 
       - name: Install backend dependencies
+        if: steps.cfg.outputs.run == 'true'
         working-directory: backend
         run: uv sync --frozen --no-group dev
 
       - name: Install Ollama and pull the model
+        if: steps.cfg.outputs.run == 'true'
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
           ollama serve > /tmp/ollama.log 2>&1 &
@@ -46,5 +64,6 @@ jobs:
           ollama pull "$LLM_MODEL"
 
       - name: Run the pipeline
+        if: steps.cfg.outputs.run == 'true'
         working-directory: backend
         run: uv run python -m app.pipeline
