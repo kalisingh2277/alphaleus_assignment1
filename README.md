@@ -17,7 +17,7 @@ profile, and pushes structured intelligence cards to a Notion CRM. It emails a
 digest on a schedule, and ships a Chrome extension for one-click "monitor this page."
 
 > ### 🔴 Live demo — **https://kalisingh2277-argus.hf.space**
-> **Source** — https://github.com/kalisingh2277/alphaleus_assignment1
+> **Source** — https://github.com/kalisingh2277/Argus_competitor_analysis
 >
 > _Free-tier hosting sleeps when idle: if the first load is blank, refresh once and
 > it wakes (the database + Space cold-start in a few seconds)._
